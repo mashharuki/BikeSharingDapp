@@ -1,24 +1,64 @@
 # BikeSharingDapp
-React.jsとRustで構築する自転車シェアリングDapp開発用のリポジトリです。
+
+React.js と Rust で構築する自転車シェアリング Dapp 開発用のリポジトリです。
 
 ### WebAssembly(WASM)とは
-ブラウザでプログラムを高速実行するための、「ブラウザ上で動くバイナリコードの新しいフォーマット(仕様)」のこと。  
-Google, Microsoft, Mozzila, Appleによって仕様が策定され開発が進められている。  
-C/C++やRust、Golang、TypeScriptなどからコンパイルが可能。
 
-### NEARが採用するストレージステーキングについて
+ブラウザでプログラムを高速実行するための、「ブラウザ上で動くバイナリコードの新しいフォーマット(仕様)」のこと。  
+Google, Microsoft, Mozzila, Apple によって仕様が策定され開発が進められている。  
+C/C++や Rust、Golang、TypeScript などからコンパイルが可能。
+
+### NEAR が採用するストレージステーキングについて
+
 コントラクトのアカウントはブロックチェーン上で使用するすべてのストレージをカバーするのに十分な残高(NEAR)を持っていなければならない。ユーザーが増えるとそのストレージコストが増えていくがこれをユーザーに支払ってもらおうという考えがストレージステーキングである。
 
-### 雛形生成コマンド
- `npx create-near-app@3.1.0 --frontend=react --contract=rust near_bike_share_dapp`
+### アカウント作成コマンド
 
-### コンソールに表示されるURL情報
- ```cmd
- see: https://explorer.testnet.near.org/accounts/mashharuki.testnet
+```
+near generate-key ft_mashharuki.testnet
+```
+
+### ローカルで作成したアカウントを NearWallet にインポートする方法
+
+作成したアカウント ID と privatekey を埋め込んで URL を叩く
+
+[https://wallet.testnet.near.org/auto-import-secret-key#YOUR_ACCOUNT_ID/YOUR_PRIVATE_KEY](https://wallet.testnet.near.org/auto-import-secret-key#YOUR_ACCOUNT_ID/YOUR_PRIVATE_KEY)
+
+### サブアカウント作成コマンド
+
+```cmd
+export ID=ft_mashharuki.testnet
+near create-account sub.$ID --masterAccount $ID --initialBalance 30
+```
+
+### 今回テスト用の作成したアカウント
+
+1. ft_mashharuki.testnet
+2. sub.ft_mashharuki.testnet(FT コントラクトデプロイ済み)
+
+### 開発用の作成したアカウントのニーモニックコード(開発用なので本番では使用しないこと！！)
+
+```
+nothing aisle fade bid fashion furnace approve sentence frog exchange citizen advance
+```
+
+### FT のデプロイトランザクション
+
+[https://explorer.testnet.near.org/transactions/EmqAZmPPgsgnZvgmpXQxYKvdaSr9yb2VbKe57tab5cmM](https://explorer.testnet.near.org/transactions/EmqAZmPPgsgnZvgmpXQxYKvdaSr9yb2VbKe57tab5cmM)
+
+### 雛形生成コマンド
+
+`npx create-near-app@3.1.0 --frontend=react --contract=rust near_bike_share_dapp`
+
+### コンソールに表示される URL 情報
+
+```cmd
+see: https://explorer.testnet.near.org/accounts/mashharuki.testnet
 App.js:187 see: https://explorer.testnet.near.org/accounts/dev-1664367873698-91420483511088
 ```
 
 ### スマートコントラクトのテストコマンド
+
 `yarn test:unit`
 
 ```cmd
@@ -39,6 +79,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ```
 
 ### スマートコントラクトの結合テストコマンド
+
 `yarn test:integration:rs`
 
 ```cmd
@@ -253,7 +294,8 @@ Passed ✅ test_transfer_call_to_use_bike
 ✨  Done in 61.40s.
 ```
 
-#### account_idのストレージの使用状況を表すデータ構造を取得するコマンド
+#### account_id のストレージの使用状況を表すデータ構造を取得するコマンド
+
 `near view sub.dev-1660204085773-49134722844982 storage_balance_of '{"account_id": "'mashharuki.testnet'"}'`
 
 ```zsh
@@ -267,7 +309,7 @@ View call: sub.dev-1660204085773-49134722844982.storage_balance_of({"account_id"
 near call sub23.mashharuki2.testnet new '{"owner_id": "'mashharuki2.testnet'", "total_supply": "1000000000000000", "metadata": { "spec": "ft-1.0.0", "name": "My First Token", "symbol": "MYFT", "decimals": 8 }}' --accountId mashharuki2.testnet
 ```
 
-### トークンのやり取りを行うために受け取り側のアドレスをFTコントラクトに登録する
+### トークンのやり取りを行うために受け取り側のアドレスを FT コントラクトに登録する
 
 ```zsh
  near call sub23.mashharuki2.testnet storage_deposit '' --accountId dev-1666503589999-87468235150551 --amount 0.00125
@@ -282,8 +324,9 @@ near view sub23.mashharuki2.testnet ft_balance_of '{"account_id": "dev-166650358
 ```
 
 ### 参考文献
- 1. [Near Workspaces](https://github.com/near/workspaces-rs)
- 2. [Gitpod](https://gitpod.io/workspaces)
- 3. [Near Docs](https://docs.near.org/api/rpc/contracts)
- 4. [NEP-141 Fungible Token](https://nomicon.io/Standards/Tokens/FungibleToken/Core#reference-level-explanation)
- 5. [Storage Management](https://nomicon.io/Standards/StorageManagement)
+
+1.  [Near Workspaces](https://github.com/near/workspaces-rs)
+2.  [Gitpod](https://gitpod.io/workspaces)
+3.  [Near Docs](https://docs.near.org/api/rpc/contracts)
+4.  [NEP-141 Fungible Token](https://nomicon.io/Standards/Tokens/FungibleToken/Core#reference-level-explanation)
+5.  [Storage Management](https://nomicon.io/Standards/StorageManagement)
