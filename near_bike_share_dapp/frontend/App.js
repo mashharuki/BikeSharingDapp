@@ -1,15 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import './assets/css/global.css';
+import React, { useEffect, useState } from "react";
+import "./assets/css/global.css";
 import {
   amount_to_use_bike, ft_balance_of, ft_transfer, ft_transfer_call, inspect_bike, is_available, login,
   logout,
   num_of_bikes, return_bike, storage_balance_of,
   storage_deposit,
   storage_unregister, who_is_inspecting, who_is_using
-} from './assets/js/near/utils';
+} from "./assets/js/near/utils";
+
 const bikeImg = require("./assets/img/bike.png");
 
-// Enum of status
+/** どの画面を描画するのかの状態の定義 */
 const RenderingStates = {
   SIGN_IN: "sign_in",
   REGISTRATION: "registration",
@@ -21,103 +22,43 @@ const RenderingStates = {
  * App Component
  */
 export default function App() {
-  // state variable
+  const [isBikeLoading, setBikeLoading] = useState(false);
   const [allBikeInfo, setAllBikeInfo] = useState([]);
   const [renderingState, setRenderingState] = useState(RenderingStates.HOME);
   const [showBalance, setShowBalance] = useState(false);
   const [balanceInfo, setBalanceInfo] = useState({});
   const [amountToUseBike, setAmountToUseBike] = useState(0);
-
-  useEffect(() => {
-
-    /**
-     * init bike use amount
-     */
-    const initAmountToUseBike = async () => {
-      const amount = await amount_to_use_bike();
-      setAmountToUseBike(BigInt(amount));
-    };
   
-    /**
-     * init Rendering state function
-     */
-    const initRenderingState = async () => {
-      if (!window.walletConnection.isSignedIn()) {
-        setRenderingState(RenderingStates.SIGN_IN);
-      } else {
-        console.log("window.accountId:", window.accountId);
-        // check status
-        const is_registered = await isRegistered(window.accountId);
-        
-        if (!is_registered) {
-          setRenderingState(RenderingStates.REGISTRATION);
-        }
-      }
-    }
 
-    /**
-     * init bike info
-     */
-    const initAllBikeInfo = async () => {
-      // get num of bikes
-      const num = await num_of_bikes();
-      console.log("Num of bikes:", num);
-
-      let new_bikes = [];
-
-      for (let i = 0; i < num; i++) {
-        const bike = await createBikeInfo(i);
-        new_bikes.push(bike);
-      }
-
-      setAllBikeInfo(new_bikes);
-      console.log("Set bikes: ", new_bikes);
-    };
-
-    initAmountToUseBike();
-    initRenderingState();
-    initAllBikeInfo();
-  }, []);
-
-  /**
-   * initial Bike info function
-   */
   const initialBikeInfo = async () => {
     return { available: false, in_use: false, inspection: false };
   };
 
-  /**
-   * initial Balance info function
-   */
+
   const initialBalanceInfo = async () => {
     return { account_id: "", balance: 0 };
   };
 
-  /**
-   * Create bike information for frontend
-   */
-  const createBikeInfo = async(index) => {
-    // get bike
+  /** 指定されたindexのバイク情報をフロント用に整形して返却します. */
+  const createBikeInfo = async (index) => {
     let bike = await initialBikeInfo();
-    
-    // change available status
     await is_available(index).then((is_available) => {
       if (is_available) {
         bike.available = is_available;
         return bike;
       }
     });
-  
-    // change using status
     await who_is_using(index).then((user_id) => {
+      // サインインしているユーザのアカウントidと同じであればユーザは使用中なので
+      // 使用中をtrueに変更します。
       if (window.accountId === user_id) {
         bike.in_use = true;
         return bike;
       }
     });
-
-    // change inspecting status
     await who_is_inspecting(index).then((inspector_id) => {
+      // サインインしているユーザのアカウントidと同じであればユーザは点検中なので
+      // 点検中をtrueに変更します。
       if (window.accountId === inspector_id) {
         bike.inspection = true;
       }
@@ -125,33 +66,45 @@ export default function App() {
     return bike;
   };
 
-  /**
-   * update Bike info (using)
-   */
-   const transferFtToUseBike = async (index) => {
+  /** バイクを使用, バイク情報を更新します。 */
+  // const useBikeThenUpdateInfo = async (index) => {
+  //   console.log("Use bike");
+  //   // 処理中は画面を切り替えるためにrenderingStatesを変更します。
+  //   setRenderingState(RenderingStates.TRANSACTION);
+
+  //   try {
+  //     await use_bike(index);
+  //   } catch (e) {
+  //     alert(e);
+  //   }
+  //   await updateBikeInfo(index);
+
+  //   setRenderingState(RenderingStates.HOME);
+  // };
+
+  /** バイクを使用, バイク情報を更新します。 */
+  const transferFtToUseBike = async (index) => {
     console.log("Transfer ft to use bike");
 
-    // get user balance
+    // 不要なトランザクションを避けるためにユーザの残高を確認
     const balance = await ft_balance_of(window.accountId);
 
     if (balance < amountToUseBike) {
       alert(amountToUseBike + "ft is required to use the bike");
     } else {
       try {
-        // call ft_transfer_call method
         ft_transfer_call(index, amountToUseBike.toString());
+        // bikeコントラクト側で指定バイクの使用処理が実行されます.
+        // トランザクションへのサイン後は画面がリロードされます.
       } catch (e) {
         alert(e);
       }
     }
   };
 
-  /**
-   * update Bike info (inspecting)
-   */
+  /** バイクを点検, バイク情報を更新します。 */
   const inspectBikeThenUpdateInfo = async (index) => {
     console.log("Inspect bike");
-
     setRenderingState(RenderingStates.TRANSACTION);
 
     try {
@@ -159,18 +112,14 @@ export default function App() {
     } catch (e) {
       alert(e);
     }
-    // update Bike info
     await updateBikeInfo(index);
 
     setRenderingState(RenderingStates.HOME);
   };
 
-  /**
-   * update Bike info (using or inspecting → available)
-   */
+  /** バイクを返却, バイク情報を更新します。 */
   const returnBikeThenUpdateInfo = async (index) => {
     console.log("Return bike");
-
     setRenderingState(RenderingStates.TRANSACTION);
 
     try {
@@ -178,17 +127,13 @@ export default function App() {
     } catch (e) {
       alert(e);
     }
-    // update Bike info
     await updateBikeInfo(index);
 
     setRenderingState(RenderingStates.HOME);
   };
 
-  /**
-   * update bike info function
-   */
+  /** 特定のバイク情報を更新してallBikeInfoにセットします。 */
   const updateBikeInfo = async (index) => {
-    // create bike info
     const new_bike = await createBikeInfo(index);
 
     allBikeInfo[index] = new_bike;
@@ -196,15 +141,12 @@ export default function App() {
     console.log("Update bikes: ", allBikeInfo);
   };
 
-  /**
-   * check account id is registered
-   */
+  /** account_idがftコントラクトに登録しているかを判別します。 */
   const isRegistered = async (account_id) => {
-    // get balance
     const balance = await storage_balance_of(account_id);
     console.log("user's storage balance: ", balance);
-  
-    // check a balance is null 
+
+    // ストレージ残高にnullが返ってくる場合は未登録を意味します.
     if (balance === null) {
       console.log("account is not yet registered");
       return false;
@@ -213,9 +155,7 @@ export default function App() {
     }
   };
 
-  /**
-   * register storage deposit
-   */
+  /** ftコントラクトに登録します。 */
   const newUserRegister = async () => {
     try {
       await storage_deposit();
@@ -224,17 +164,14 @@ export default function App() {
     }
   };
 
-  /**
-   * prepare balance info
-   */
-  const prepareBalanceInfo = async (accountId) => {
-    // get fungible token balance
-    const balance = await ft_balance_of(accountId);
-    // init
+  /** account_idのft残高を取得し, 残高表示用オブジェクトbalanceInfoにセットします。 */
+  const prepareBalanceInfo = async (account_id) => {
+    const balance = await ft_balance_of(account_id);
+
     let balance_info = await initialBalanceInfo();
-    balance_info.account_id = accountId;
+    balance_info.account_id = account_id;
     balance_info.balance = balance;
-  
+
     setBalanceInfo(balance_info);
     setShowBalance(true);
   };
@@ -243,34 +180,75 @@ export default function App() {
     "see:",
     `https://explorer.testnet.near.org/accounts/${window.accountId}`
   );
-  
+
   console.log(
     "see:",
     `https://explorer.testnet.near.org/accounts/${window.contract.contractId}`
   );
 
-  /**
-   * Sign out button component
-   */
+  useEffect(() => {
+    
+    /**
+     * init bike use amount
+     */
+    const initAmountToUseBike = async () => {
+      const amount = await amount_to_use_bike(); 
+      setAmountToUseBike(BigInt(amount));
+    };
+
+    /**
+     * init Rendering state function
+     */
+    const initRenderingState = async () => {
+      if (!window.walletConnection.isSignedIn()) {
+        setRenderingState(RenderingStates.SIGN_IN);
+      } else {
+        // check register
+        const is_registered = await isRegistered(window.accountId);
+        if (!is_registered) {
+          setRenderingState(RenderingStates.REGISTRATION);
+        }
+      }
+    };
+
+    /**
+     * init bike info
+     */
+    const InitAllBikeInfo = async () => {
+      setBikeLoading(true);
+      const num = await num_of_bikes();
+      console.log("Num of bikes:", num);
+
+      let new_bikes = [];
+      for (let i = 0; i < num; i++) {
+        const bike = await createBikeInfo(i);
+        new_bikes.push(bike);
+      }
+
+      setAllBikeInfo(new_bikes);
+      console.log("Set bikes: ", new_bikes);
+      setBikeLoading(false);
+    };
+
+    initAmountToUseBike();
+    initRenderingState();
+    InitAllBikeInfo();
+  }, []);
+
+  /** サインアウトボタンの表示に使用します。 */
   const signOutButton = () => {
     return (
-      <button 
-        className="link" 
-        style={{ float: "right" }} 
-        onClick={logout}
-      >
+      <button className="link" style={{ float: "right" }} onClick={logout}>
         Sign out
       </button>
     );
   };
 
-  /**
-   * Unregister button component
-   */
+  /** 登録解除ボタンの表示に使用します。 */
   const unregisterButton = () => {
     return (
-      <button 
-        className="link" 
+      <button
+        className="link"
         style={{ float: "right" }}
         onClick={storage_unregister}
       >
@@ -279,26 +257,20 @@ export default function App() {
     );
   };
 
-  /**
-   * Sign in button component
-   */
+  /** サインイン画面を表示します。 */
   const requireSignIn = () => {
     return (
       <div>
         <main>
           <p style={{ textAlign: "center", marginTop: "2.5em" }}>
-            <button onClick={login}>
-              Sign in
-            </button>
+            <button onClick={login}>Sign in</button>
           </p>
         </main>
       </div>
     );
   };
 
-  /**
-   * Registration form component
-   */
+  /** 登録画面を表示します。 */
   const requireRegistration = () => {
     return (
       <div>
@@ -310,27 +282,19 @@ export default function App() {
         </div>
         <main>
           <p style={{ textAlign: "center", marginTop: "2.5em" }}>
-            <button 
-              onClick={newUserRegister}
-            >
-              storage deposit 
-            </button>
+            <button onClick={newUserRegister}>storage deposit</button>
           </p>
         </main>
       </div>
     );
   };
 
-  /**
-   * header
-   */
+  /** 画面のヘッダー部分の表示に使用します。 */
   const header = () => {
     return <h1>Hello {window.accountId} !</h1>;
   };
 
-  /**
-   * during transaction status
-   */
+  /** トランザクション中の画面を表示します。 */
   const transaction = () => {
     return (
       <div>
@@ -342,61 +306,68 @@ export default function App() {
     );
   };
 
-  /**
-   * display bike contents component
-   */
+  // useのonClickでtransferFtToUseBikeを使用するように変更
   const bikeContents = () => {
     return (
-      <div>
-        {allBikeInfo.map((bike, index) => {
-          return (
-            <div 
-              className="bike" 
-              style={{ display: "flex" }}
-            >
-              <div className="bike_img">
-                <img src={bikeImg} />
-              </div>
-              <div className="bike_index">: {index}</div>
-              <button
-                disabled={!bike.available}
-                onClick={() => transferFtToUseBike(index)}
-              >
-                use
-              </button>
-              <button
-                disabled={!bike.available}
-                onClick={() => inspectBikeThenUpdateInfo(index)}
-              >
-                inspect
-              </button>
-              <button
-                disabled={!bike.in_use && !bike.inspection}
-                onClick={() => returnBikeThenUpdateInfo(index)}
-              >
-                return
-              </button>
+      <>
+        {isBikeLoading ? (
+          <div class="bike" style={{ display: "flex" }}>
+            <div class="bike_img">
+              <img src={bikeImg} />
             </div>
-          );
-        })}
-      </div>
+            <div class="bike_index">: Loding Bike Contents ...</div>
+          </div>
+
+        ) : (
+          <div>
+            {allBikeInfo.map((bike, index) => {
+              return (
+                <div class="bike" style={{ display: "flex" }}>
+                  <div class="bike_img">
+                    <img src={bikeImg} />
+                  </div>
+                  <div class="bike_index">: {index}</div>
+                  <button
+                    // ボタンを無効化する条件を定義
+                    disabled={!bike.available}
+                    onClick={() => transferFtToUseBike(index)} // <- 変更！
+                  >
+                    use
+                  </button>
+                  <button
+                    // ボタンを無効化する条件を定義
+                    disabled={!bike.available}
+                    onClick={() => inspectBikeThenUpdateInfo(index)}
+                  >
+                    inspect
+                  </button>
+                  <button
+                    // ボタンを無効化する条件を定義。
+                    // ログインユーザがバイクを使用も点検もしていない場合は使用できないようにしています。
+                    disabled={!bike.in_use && !bike.inspection}
+                    onClick={() => returnBikeThenUpdateInfo(index)}
+                  >
+                    return
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </>
     );
   };
 
-  /**
-   * display balance component
-   */
+  /** 残高表示に使用します。 */
   const checkBalance = () => {
     return (
       <div class="balance_content">
-        <button
-          onClick={() => prepareBalanceInfo(window.accountId)}
-        >
+        <button onClick={() => prepareBalanceInfo(window.accountId)}>
           check my balance
         </button>
-        <button 
+        <button
           style={{ marginTop: "0.1em" }}
-          onClick={() => prepareBalanceInfo(window.contract.contractId)}  
+          onClick={() => prepareBalanceInfo(window.contract.contractId)}
         >
           check contract's balance
         </button>
@@ -407,7 +378,6 @@ export default function App() {
             const { fieldset, account } = event.target.elements;
             const account_to_check = account.value;
             fieldset.disabled = true;
-
             try {
               await prepareBalanceInfo(account_to_check);
             } catch (e) {
@@ -433,10 +403,8 @@ export default function App() {
     );
   };
 
-  /**
-   * transfer fungible token form component
-   */
-   const transferFt = () => {
+  /** ftの送信部分の表示に使用します。 */
+  const transferFt = () => {
     return (
       <div>
         <form
@@ -445,7 +413,6 @@ export default function App() {
             const { fieldset, account } = event.target.elements;
             const account_to_transfer = account.value;
             fieldset.disabled = true;
-
             try {
               await ft_transfer(account_to_transfer, amountToUseBike.toString());
             } catch (e) {
@@ -481,9 +448,7 @@ export default function App() {
     );
   };
 
-  /**
-   * home component
-   */
+  /** ホーム画面を表示します。 */
   const home = () => {
     return (
       <div>
@@ -499,13 +464,17 @@ export default function App() {
     );
   };
 
+  /** renderingStateに適した画面を表示します。 */
   switch (renderingState) {
     case RenderingStates.SIGN_IN:
       return <div>{requireSignIn()}</div>;
+
     case RenderingStates.REGISTRATION:
       return <div>{requireRegistration()}</div>;
+
     case RenderingStates.TRANSACTION:
       return <div>{transaction()}</div>;
+
     case RenderingStates.HOME:
       return <div>{home()}</div>;
   }

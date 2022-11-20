@@ -42,10 +42,12 @@ h5 {
   color: var(--primary);
   text-decoration: none;
 }
+
 .link:hover,
 .link:focus {
   text-decoration: underline;
 }
+
 .link:active {
   color: var(--secondary);
 }
@@ -65,19 +67,23 @@ button {
   padding: 0.3em 0.75em;
   transition: transform 30ms;
 }
+
 button:hover,
 button:focus {
   box-shadow: 0 0 10em rgba(255, 255, 255, 0.2) inset;
 }
+
 button:active {
   box-shadow: 0 0 10em rgba(0, 0, 0, 0.1) inset;
 }
+
 button.link {
   background: none;
   border: none;
   box-shadow: none;
   display: inline;
 }
+
 [disabled] button,
 button[disabled] {
   box-shadow: none;
@@ -86,11 +92,13 @@ button[disabled] {
   cursor: not-allowed;
   transform: none;
 }
+
 [disabled] button {
   text-indent: -900em;
   width: 2em;
   position: relative;
 }
+
 [disabled] button:after {
   content: " ";
   display: block;
@@ -104,10 +112,12 @@ button[disabled] {
   top: 0.45em;
   right: 0.5em;
 }
+
 @keyframes loader {
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -126,10 +136,12 @@ input {
   color: inherit;
   padding: 0.25em 1em;
 }
+
 input::selection {
   background-color: var(--secondary);
   color: #efefef;
 }
+
 input:focus {
   box-shadow: 0 0 10em rgba(0, 0, 0, 0.02) inset;
 }

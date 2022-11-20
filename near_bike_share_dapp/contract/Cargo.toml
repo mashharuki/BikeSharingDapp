@@ -1,5 +1,5 @@
 [package]
-authors = ["mashharuki"]
+authors = ["Near Inc <hello@near.org>"]
 edition = "2021"
 name = "bike_share"
 version = "1.0.0"

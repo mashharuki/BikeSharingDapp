@@ -1,34 +1,26 @@
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
+    env, ext_contract,
     json_types::{self, U128},
-    near_bindgen,
-    env,
-    log,
-    AccountId,
-    Gas,
-    Promise,
-    PromiseResult,
-    ext_contract,
-    PanicOnDefault, 
-    PromiseOrValue
+    log, near_bindgen, AccountId, Gas, PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
 };
 
-const DEFAULT_NUM_OF_BIKES: usize = 5;
+const FT_CONTRACT_ACCOUNT: &str = "sub.ft_mashharuki.testnet"; 
 const AMOUNT_REWARD_FOR_INSPECTIONS: u128 = 15;
-const FT_CONTRACT_ACCOUNT: &str = "sub.ft_mashharuki.testnet";
-const AMOUNT_TO_USE_BIKE: u128 = 30; 
+const AMOUNT_TO_USE_BIKE: u128 = 30;
+
+
+#[ext_contract(ext_ft)]
+trait FungibleToken {
+    fn ft_transfer(&mut self, receiver_id: String, amount: String, memo: Option<String>);
+}
 
 // enum of Bike
 #[derive(BorshDeserialize, BorshSerialize)]
 enum Bike {
-    Available,             
-    InUse(AccountId),      
-    Inspection(AccountId),
-}
-    
-#[ext_contract(ext_ft)]
-trait FungibleToken {
-    fn ft_transfer(&mut self, receiver_id: String, amount: String, memo: Option<String>); 
+    Available,             // 使用可能
+    InUse(AccountId),      // AccountIdによって使用中
+    Inspection(AccountId), // AccountIdによって点検中
 }
 
 /**
@@ -40,9 +32,9 @@ pub struct Contract {
     bikes: Vec<Bike>,
 }
 
+
 #[near_bindgen]
 impl Contract {
-
     /**
      * initialization
      */
@@ -53,7 +45,6 @@ impl Contract {
         Self {
             bikes: {
                 let mut bikes = Vec::new();
-
                 for _i in 0..num_of_bikes {
                     bikes.push(Bike::Available);
                 }
@@ -61,17 +52,15 @@ impl Contract {
             },
         }
     }
-    
+
     /**
-     * get num of bikes
+     * get account id using a bike
      */
     pub fn num_of_bikes(&self) -> usize {
         self.bikes.len()
     }
 
-    /**
-     * check status
-     */
+    /// indexで指定されたバイクが使用可能かどうかを判別します。
     pub fn is_available(&self, index: usize) -> bool {
         match self.bikes[index] {
             Bike::Available => true,
@@ -79,9 +68,7 @@ impl Contract {
         }
     }
 
-    /**
-     * get account id using a bike
-     */
+    
     pub fn who_is_using(&self, index: usize) -> Option<AccountId> {
         match &self.bikes[index] {
             Bike::InUse(user_id) => Some(user_id.clone()),
@@ -129,8 +116,9 @@ impl Contract {
             msg
         );
 
-        // call use_bike function
+        // use_bike メソッドの呼び出し
         self.use_bike(msg.parse().unwrap(), sender_id.try_into().unwrap());
+        // 受信したFTは全て受け取るので, 返却する残金は0.
         PromiseOrValue::Value(U128::from(0))
     }
 
@@ -139,6 +127,7 @@ impl Contract {
      */
     fn use_bike(&mut self, index: usize, user_id: AccountId) {
         log!("{} uses bike", &user_id);
+
         match &self.bikes[index] {
             Bike::Available => self.bikes[index] = Bike::InUse(user_id),
             _ => panic!("Bike is not available"),
@@ -149,7 +138,6 @@ impl Contract {
      * change status Inuse → Inspecting
      */
     pub fn inspect_bike(&mut self, index: usize) {
-        // get accountid calling this method
         let user_id = env::predecessor_account_id();
         log!("{} inspects bike", &user_id);
 
@@ -163,7 +151,6 @@ impl Contract {
      * change status Inuse or Inspecting → Available
      */
     pub fn return_bike(&mut self, index: usize) {
-        // get accountid calling this method
         let user_id = env::predecessor_account_id();
         log!("{} returns bike", &user_id);
 
@@ -177,7 +164,7 @@ impl Contract {
                 assert_eq!(inspector.clone(), user_id, "Fail due to wrong account");
                 Self::return_inspected_bike(index);
             }
-        }
+        };
     }
 
     /**
@@ -195,6 +182,7 @@ impl Contract {
             &amount
         );
 
+        // cross contract call (contract_idのft_transfer()メソッドを呼び出す)
         ext_ft::ext(contract_id)
             .with_attached_deposit(1)
             .ft_transfer(receiver_id, amount, None)
@@ -206,39 +194,36 @@ impl Contract {
             )
     }
 
-    /**
-     * callback function
-     */
+    /// cross contract call の結果を元に処理を条件分岐します。
+    // #[private]: predecessor(このメソッドを呼び出しているアカウント)とcurrent_account(このコントラクトのアカウント)が同じことをチェックするマクロです.
+    // callbackの場合, コントラクトが自身のメソッドを呼び出すことを期待しています.
+    #[private]
     pub fn callback_return_bike(&mut self, index: usize) {
         assert_eq!(env::promise_results_count(), 1, "This is a callback method");
-
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Failed => panic!("Fail cross-contract call"),
-            // if success, change status
+            // 成功時のみBikeを返却(使用可能に変更)
             PromiseResult::Successful(_) => self.bikes[index] = Bike::Available,
         }
     }
 }
 
-/**
- * test code
- */
 #[cfg(test)]
 mod tests {
-
+    // テスト環境の構築に必要なものをインポート
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::testing_env;
-    
+
+    // Contractのモジュールをインポート
     use super::*;
 
-    /**
-     * create Virtual environment
-     */
+    // VMContextBuilderのテンプレートを用意
+    // VMContextBuilder: テスト環境(モックされたブロックチェーン)をcontext(テスト材料)をもとに変更できるインターフェース
     fn get_context(predecessor_account_id: AccountId) -> VMContextBuilder {
         let mut builder = VMContextBuilder::new();
         builder
-            .current_account_id(accounts(0))
+            .current_account_id(accounts(0)) // accounts(0): テスト用のアカウントリストの中の0番アカウントを取得します.
             .signer_account_id(predecessor_account_id.clone())
             .predecessor_account_id(predecessor_account_id);
         builder
@@ -246,40 +231,31 @@ mod tests {
 
     #[test]
     fn check_default() {
-        // create context
-        let mut context = get_context(accounts(1));
-        // init
-        testing_env!(context.build());
-
+        let mut context = get_context(accounts(1)); 
+        testing_env!(context.build()); 
         let init_num = 5;
-        // create contract
         let contract = Contract::new(init_num);
 
+        // view関数の実行のみ許可する環境に初期化
         testing_env!(context.is_view(true).build());
-        // check num of bikes
-        assert_eq!(contract.num_of_bikes(), DEFAULT_NUM_OF_BIKES);
-        // check status of bikes
-        for i in 0..DEFAULT_NUM_OF_BIKES {
+
+        assert_eq!(contract.num_of_bikes(), init_num);
+        for i in 0..init_num {
             assert!(contract.is_available(i))
         }
     }
 
     #[test]
     fn check_inspecting_account() {
-        // create context
         let mut context = get_context(accounts(1));
-        // init 
         testing_env!(context.build());
-        // create contract
         let mut contract = Contract::new(5);
 
         let test_index = contract.bikes.len() - 1;
-        // change status
         contract.inspect_bike(test_index);
 
         testing_env!(context.is_view(true).build());
 
-        // check status of bikes
         for i in 0..contract.num_of_bikes() {
             if i == test_index {
                 assert_eq!(accounts(1), contract.who_is_inspecting(i).unwrap());
@@ -289,17 +265,14 @@ mod tests {
         }
     }
 
+    
     #[test]
     #[should_panic(expected = "Fail due to wrong account")]
     fn return_by_other_account() {
-        // create context
         let mut context = get_context(accounts(1));
-        // init
         testing_env!(context.build());
-        // create contract
         let mut contract = Contract::new(5);
 
-        // change status
         contract.inspect_bike(0);
 
         testing_env!(context.predecessor_account_id(accounts(2)).build());

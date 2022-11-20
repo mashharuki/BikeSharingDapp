@@ -1,54 +1,47 @@
-import {
-  connect,
-  Contract,
-  keyStores,
-  WalletConnection
-} from 'near-api-js';
-import getConfig from './config';
+import { connect, Contract, keyStores, WalletConnection } from "near-api-js";
+import getConfig from "./config";
 
-const nearConfig = getConfig(process.env.NODE_ENV || 'development')
+const nearConfig = getConfig(process.env.NODE_ENV || "development");
 
-/**
- * Initialize contract & set global variables
- */
+// Initialize contract & set global variables
 export async function initContract() {
   // Initialize connection to the NEAR testnet
   const near = await connect(
     Object.assign(
-      { deps: { keyStore: new keyStores.BrowserLocalStorageKeyStore() } }, 
+      { deps: { keyStore: new keyStores.BrowserLocalStorageKeyStore() } },
       nearConfig
     )
   );
 
   // Initializing Wallet based Account. It can work with NEAR testnet wallet that
   // is hosted at https://wallet.testnet.near.org
-  window.walletConnection = new WalletConnection(near)
+  window.walletConnection = new WalletConnection(near);
+
   // Getting the Account ID. If still unauthorized, it's just empty string
-  window.accountId = window.walletConnection.getAccountId()
-  // Initializing our contract APIs by contract name and configuration
+  window.accountId = window.walletConnection.getAccountId();
+
+  // コントラクトAPIの初期化
   window.contract = await new Contract(
-    window.walletConnection.account(), 
-    nearConfig.contractName, 
+    window.walletConnection.account(),
+    nearConfig.contractName,
     {
-      // View methods are read only. They don't modify the state, but usually return some value.
       viewMethods: [
         "num_of_bikes",
         "is_available",
         "who_is_using",
         "who_is_inspecting",
-        "amount_to_use_bike"
+        "amount_to_use_bike", 
       ],
-      // Change methods can modify the state. But you don't receive the returned value when called.
       changeMethods: [
         "inspect_bike", 
         "return_bike"
-      ],
+      ], 
     }
-  )
+  );
 
-  // Initializing Fungible token contract APIs by contract name and configuration
+  // ftコントラクトとの接続を追加
   window.ftContract = await new Contract(
-    window.walletConnection.account(), 
+    window.walletConnection.account(),
     nearConfig.ftContractName,
     {
       viewMethods: [
@@ -56,41 +49,34 @@ export async function initContract() {
         "storage_balance_of"
       ],
       changeMethods: [
-        "storage_deposit", 
-        "storage_unregister", 
+        "storage_deposit",
+        "storage_unregister",
         "ft_transfer",
-        "ft_transfer_call"
+        "ft_transfer_call", 
       ],
     }
   );
 }
 
-/**
- * logout function
- */
 export function logout() {
-  window.walletConnection.signOut()
-  window.location.replace(window.location.origin + window.location.pathname)
+  window.walletConnection.signOut();
+  // reload page
+  window.location.replace(window.location.origin + window.location.pathname);
 }
 
-/**
- * login function
- */
 export function login() {
-  window.walletConnection.requestSignIn(nearConfig.contractName)
+  // Allow the current app to make calls to the specified contract on the
+  // user's behalf.
+  // This works by creating a new access key for the user's account and storing
+  // the private key in localStorage.
+  window.walletConnection.requestSignIn(nearConfig.contractName);
 }
 
-/**
- * get num of bikes function
- */
 export async function num_of_bikes() {
   let n = await window.contract.num_of_bikes();
   return n;
 }
 
-/**
- * get status of bikes
- */
 export async function is_available(index) {
   let response = await window.contract.is_available({
     index: index,
@@ -98,9 +84,6 @@ export async function is_available(index) {
   return response;
 }
 
-/**
- * get status of bikes using
- */
 export async function who_is_using(index) {
   let response = await window.contract.who_is_using({
     index: index,
@@ -108,9 +91,6 @@ export async function who_is_using(index) {
   return response;
 }
 
-/**
- * get status of bikes inspecting
- */
 export async function who_is_inspecting(index) {
   let response = await window.contract.who_is_inspecting({
     index: index,
@@ -118,9 +98,13 @@ export async function who_is_inspecting(index) {
   return response;
 }
 
-/**
- * change status function
- */
+// export async function use_bike(index) {
+//   let response = await window.contract.use_bike({
+//     index: index,
+//   });
+//   return response;
+// }
+
 export async function inspect_bike(index) {
   let response = await window.contract.inspect_bike({
     index: index,
@@ -128,9 +112,6 @@ export async function inspect_bike(index) {
   return response;
 }
 
-/**
- * change status function
- */
 export async function return_bike(index) {
   let response = await window.contract.return_bike({
     index: index,
@@ -139,56 +120,50 @@ export async function return_bike(index) {
 }
 
 /**
- * get fungible token amount function
+ * account_idのftの残高を取得します。
  */
 export async function ft_balance_of(account_id) {
-  console.log("window.ftContract:", window.ftContract)
   let balance = await window.ftContract.ft_balance_of({
-    account_id : account_id,
+    account_id: account_id,
   });
+  console.log("balance:", balance);
   return balance;
 }
 
 /**
- * get storage balance of account id function
+ * account_idのストレージの使用状況を表すデータ構造を取得します。
+ * account_idが登録されていない場合はnullが返るので, 登録されているかどうかの判断にこの関数を使用します。
  */
-export async function storage_balance_of(accountId) { 
-  console.log("accountId:", accountId)
-  console.log("window.ftContract:", window.ftContract)
-
+export async function storage_balance_of(account_id) {
   let balance = await window.ftContract.storage_balance_of({
-    account_id : accountId,
+    account_id: account_id,
   });
+  console.log("accountId:", account_id);
   return balance;
 }
 
-/**
- * register storage deposit function
- */
+/** ストレージ使用量を支払い登録を行います。 */
 export async function storage_deposit() {
   let response = await window.ftContract.storage_deposit(
-    {}, 
-    "300000000000000", // gas
-    "1250000000000000000000" // deposit amount (in yoctoNEAR, 1 yoctoNEAR = 10^-24 NEAR)
+    {}, // 引数の省略 = このメソッドを呼び出しているアカウントを登録
+    "300000000000000", // ガス量の制限(in gas units)
+    "1250000000000000000000" // デポジット (in yoctoNEAR, 1 yoctoNEAR = 10^-24 NEAR)
   );
   return response;
 }
 
-/**
- * unregister storage deposit function
- */
+/** アカウントの登録を解除します。 */
+// 今回は簡単のため強制的に解除する方法を引数指定でとっています。
 export async function storage_unregister() {
   let response = await window.ftContract.storage_unregister(
-    { force: true },
+    { force: true }, // アカウントの情報に関わらず登録を解除する, 所持しているftはバーンされる
     "300000000000000",
     "1"
   );
   return response;
 }
 
-/**
- * transfer fungible token function
- */
+/** ftをreceiver_idへ転送します。 */
 export async function ft_transfer(receiver_id, amount) {
   let response = await window.ftContract.ft_transfer(
     {
@@ -196,7 +171,7 @@ export async function ft_transfer(receiver_id, amount) {
       amount: amount,
     },
     "300000000000000",
-    "1" // 1 yoctoNEAR
+    "1" // セキュリティ上必要な 1 yoctoNEAR
   );
   return response;
 }
