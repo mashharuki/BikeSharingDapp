@@ -67,22 +67,6 @@ export default function App() {
   };
 
   /** バイクを使用, バイク情報を更新します。 */
-  // const useBikeThenUpdateInfo = async (index) => {
-  //   console.log("Use bike");
-  //   // 処理中は画面を切り替えるためにrenderingStatesを変更します。
-  //   setRenderingState(RenderingStates.TRANSACTION);
-
-  //   try {
-  //     await use_bike(index);
-  //   } catch (e) {
-  //     alert(e);
-  //   }
-  //   await updateBikeInfo(index);
-
-  //   setRenderingState(RenderingStates.HOME);
-  // };
-
-  /** バイクを使用, バイク情報を更新します。 */
   const transferFtToUseBike = async (index) => {
     console.log("Transfer ft to use bike");
 
