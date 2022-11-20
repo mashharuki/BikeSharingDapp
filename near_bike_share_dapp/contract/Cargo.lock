@@ -65,6 +65,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
 
 [[package]]
+name = "bike_share"
+version = "1.0.0"
+dependencies = [
+ "near-sdk",
+ "uint",
+]
+
+[[package]]
 name = "bitvec"
 version = "0.20.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -462,14 +470,6 @@ dependencies = [
  "cfg-if 1.0.0",
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
-]
-
-[[package]]
-name = "greeter"
-version = "1.0.0"
-dependencies = [
- "near-sdk",
- "uint",
 ]
 
 [[package]]

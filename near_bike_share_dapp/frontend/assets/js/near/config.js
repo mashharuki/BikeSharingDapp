@@ -1,4 +1,6 @@
-const CONTRACT_NAME = process.env.CONTRACT_NAME ||'new-awesome-project'
+const CONTRACT_NAME = process.env.CONTRACT_NAME || 'dev-1668782422291-35150031492822'
+// fungible token contract name
+const FT_CONTRACT_NAME = "sub.ft_mashharuki.testnet";
 
 function getConfig(env) {
   switch (env) {
@@ -9,6 +11,7 @@ function getConfig(env) {
       networkId: 'mainnet',
       nodeUrl: 'https://rpc.mainnet.near.org',
       contractName: CONTRACT_NAME,
+      ftContractName: FT_CONTRACT_NAME,
       walletUrl: 'https://wallet.near.org',
       helperUrl: 'https://helper.mainnet.near.org',
       explorerUrl: 'https://explorer.mainnet.near.org',
@@ -28,6 +31,7 @@ function getConfig(env) {
       networkId: 'betanet',
       nodeUrl: 'https://rpc.betanet.near.org',
       contractName: CONTRACT_NAME,
+      ftContractName: FT_CONTRACT_NAME,
       walletUrl: 'https://wallet.betanet.near.org',
       helperUrl: 'https://helper.betanet.near.org',
       explorerUrl: 'https://explorer.betanet.near.org',
@@ -39,6 +43,7 @@ function getConfig(env) {
       keyPath: `${process.env.HOME}/.near/validator_key.json`,
       walletUrl: 'http://localhost:4000/wallet',
       contractName: CONTRACT_NAME,
+      ftContractName: FT_CONTRACT_NAME,
     }
   case 'test':
   case 'ci':
@@ -46,6 +51,7 @@ function getConfig(env) {
       networkId: 'shared-test',
       nodeUrl: 'https://rpc.ci-testnet.near.org',
       contractName: CONTRACT_NAME,
+      ftContractName: FT_CONTRACT_NAME,
       masterAccount: 'test.near',
     }
   case 'ci-betanet':
@@ -53,6 +59,7 @@ function getConfig(env) {
       networkId: 'shared-test-staging',
       nodeUrl: 'https://rpc.ci-betanet.near.org',
       contractName: CONTRACT_NAME,
+      ftContractName: FT_CONTRACT_NAME,
       masterAccount: 'test.near',
     }
   default:
