@@ -1,4 +1,4 @@
-const CONTRACT_NAME = process.env.CONTRACT_NAME || "sub.junkei_bike_account.testnet";
+const CONTRACT_NAME = process.env.CONTRACT_NAME || "dev-1668931476711-22851070401597";
 const FT_CONTRACT_NAME = "sub.ft_mashharuki.testnet";
 
 function getConfig(env) {
